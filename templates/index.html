@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>My AI</h1>
+        <p>A smart assistant you can talk to</p>
+    </header>
+
+    <main>
+        <div class="chat-container">
+            <div class="chat-window" id="chat-window">
+                <div class="message ai-message">
+                    <span class="sender">My AI</span>
+                    <p>Hi! I'm your AI assistant. Type a message below and I'll respond!</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off" />
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        Built by me &mdash; AI Creation Project
+    </footer>
+
+<script>
+    const input = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatWindow = document.getElementById('chat-window');
+
+    function addMessage(text, who) {
+        const div = document.createElement('div');
+        div.classList.add('message', who === 'user' ? 'user-message' : 'ai-message');
+        div.innerHTML = `<span class="sender">${who === 'user' ? 'You' : 'My AI'}</span><p>${text}</p>`;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
+        addMessage(text, 'user');
+        input.value = '';
+        sendBtn.disabled = true;
+        input.disabled = true;
+
+        const thinking = addThinking();
+
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            thinking.remove();
+
+            if (data.reply) {
+                addMessage(data.reply, 'ai');
+            } else {
+                addMessage('Error: ' + (data.error || 'Something went wrong.'), 'ai');
+            }
+        } catch (err) {
+            thinking.remove();
+            addMessage('Could not reach the server. Is it running?', 'ai');
+        }
+
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+    }
+
+    function addThinking() {
+        const div = document.createElement('div');
+        div.classList.add('message', 'ai-message', 'thinking');
+        div.innerHTML = `<span class="sender">My AI</span><p>Thinking...</p>`;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return div;
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+</script>
+</body>
+</html>
