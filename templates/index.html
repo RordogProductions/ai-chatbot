@@ -3,93 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My AI</title>
+    <title>Rordog AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-    <header>
-        <h1>My AI</h1>
-        <p>A smart assistant you can talk to</p>
-    </header>
+<header>
+    <div class="header-avatar">🤖</div>
+    <div class="header-info">
+        <h1>Rordog AI</h1>
+        <div class="status">Online</div>
+    </div>
+</header>
 
-    <main>
-        <div class="chat-container">
-            <div class="chat-window" id="chat-window">
-                <div class="message ai-message">
-                    <span class="sender">My AI</span>
-                    <p>Hi! I'm your AI assistant. Type a message below and I'll respond!</p>
+<main>
+    <div class="chat-container">
+        <div class="chat-window" id="chat-window">
+            <div class="message ai-message">
+                <div class="bubble-wrap ai-wrap">
+                    <div class="avatar ai-avatar">🤖</div>
+                    <div class="bubble ai-bubble">
+                        <p>Hey! I'm Rordog AI. Ask me anything, or use the <strong>+</strong> button to share a photo or file!</p>
+                    </div>
                 </div>
             </div>
-            <div class="chat-input-area">
-                <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off" />
-                <button id="send-btn">Send</button>
+        </div>
+
+        <div class="input-area">
+            <div class="attachment-preview" id="attachment-preview">
+                📎 <span id="attachment-name"></span>
+                <button class="remove-btn" id="remove-attachment" title="Remove">✕</button>
+            </div>
+            <div class="input-row">
+                <div class="plus-wrap">
+                    <button class="plus-btn" id="plus-btn" title="Attach">+</button>
+                    <div class="plus-menu" id="plus-menu">
+                        <button id="menu-photo">📷 Photo</button>
+                        <button id="menu-file">📄 File</button>
+                    </div>
+                </div>
+                <input type="text" class="chat-input" id="user-input" placeholder="Message Rordog AI..." autocomplete="off">
+                <button class="send-btn" id="send-btn" title="Send">↑</button>
             </div>
         </div>
-    </main>
+    </div>
+</main>
 
-    <footer>
-        Built by me &mdash; AI Creation Project
-    </footer>
+<footer>Rordog AI &mdash; Created by Rordog</footer>
 
-<script>
-    const input = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const chatWindow = document.getElementById('chat-window');
+<!-- Hidden file inputs -->
+<input type="file" id="photo-input" accept="image/*" style="display:none">
+<input type="file" id="file-input" accept=".pdf,.txt,.csv,.md,.py,.js,.html,.css,.json" style="display:none">
 
-    function addMessage(text, who) {
-        const div = document.createElement('div');
-        div.classList.add('message', who === 'user' ? 'user-message' : 'ai-message');
-        div.innerHTML = `<span class="sender">${who === 'user' ? 'You' : 'My AI'}</span><p>${text}</p>`;
-        chatWindow.appendChild(div);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
-
-    async function sendMessage() {
-        const text = input.value.trim();
-        if (!text) return;
-        addMessage(text, 'user');
-        input.value = '';
-        sendBtn.disabled = true;
-        input.disabled = true;
-
-        const thinking = addThinking();
-
-        try {
-            const res = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
-            });
-            const data = await res.json();
-            thinking.remove();
-
-            if (data.reply) {
-                addMessage(data.reply, 'ai');
-            } else {
-                addMessage('Error: ' + (data.error || 'Something went wrong.'), 'ai');
-            }
-        } catch (err) {
-            thinking.remove();
-            addMessage('Could not reach the server. Is it running?', 'ai');
-        }
-
-        sendBtn.disabled = false;
-        input.disabled = false;
-        input.focus();
-    }
-
-    function addThinking() {
-        const div = document.createElement('div');
-        div.classList.add('message', 'ai-message', 'thinking');
-        div.innerHTML = `<span class="sender">My AI</span><p>Thinking...</p>`;
-        chatWindow.appendChild(div);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-        return div;
-    }
-
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
-</script>
+<script src="/static/script.js"></script>
 </body>
 </html>
