@@ -51,36 +51,22 @@ def build_image_prompt(user_message):
     return response.choices[0].message.content.strip()
 
 def fetch_image(prompt):
-    import urllib.request, json, time
-    payload = json.dumps({
-        "prompt": prompt[:300],
-        "params": {"width": 512, "height": 512, "steps": 20, "n": 1},
-        "models": ["Dreamshaper"],
-        "r2": True
-    }).encode()
+    import urllib.request, json, random
+    encoded = urllib.parse.quote(prompt[:200])
     req = urllib.request.Request(
-        "https://stablehorde.net/api/v2/generate/async",
-        data=payload,
-        headers={"Content-Type": "application/json", "apikey": os.environ.get("HORDE_API_KEY", "0000000000")}
+        f"https://lexica.art/api/v1/search?q={encoded}",
+        headers={"User-Agent": "Mozilla/5.0"}
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        job_id = json.loads(resp.read())["id"]
-    for _ in range(90):
-        time.sleep(2)
-        status_req = urllib.request.Request(
-            f"https://stablehorde.net/api/v2/generate/status/{job_id}",
-            headers={"apikey": os.environ.get("HORDE_API_KEY", "0000000000")}
-        )
-        with urllib.request.urlopen(status_req, timeout=15) as resp:
-            status = json.loads(resp.read())
-        if status.get("done"):
-            img = status["generations"][0]["img"]
-            if img.startswith("http"):
-                with urllib.request.urlopen(img, timeout=15) as img_resp:
-                    img_bytes = img_resp.read()
-                return "data:image/webp;base64," + base64.b64encode(img_bytes).decode("utf-8")
-            return "data:image/webp;base64," + img
-    raise Exception("Image generation timed out. Please try again.")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    images = data.get("images", [])
+    if not images:
+        raise Exception("No images found for that prompt. Try a different description.")
+    image_url = random.choice(images[:8])["src"]
+    img_req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(img_req, timeout=15) as img_resp:
+        img_bytes = img_resp.read()
+    return "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
 
 def run_image_job(job_id, user_message):
     try:
