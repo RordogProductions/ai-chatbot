@@ -48,7 +48,7 @@ def build_image_prompt(user_message):
 
 def make_image_url(prompt):
     encoded = urllib.parse.quote(prompt)
-    return f"https://image.pollinations.ai/prompt/{encoded}?width=768&height=768&nologo=true&model=flux"
+    return f"https://image.pollinations.ai/prompt/{encoded}?width=768&height=768&nologo=true"
 
 @app.route("/")
 def index():

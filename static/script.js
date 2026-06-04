@@ -134,14 +134,38 @@ function appendAIMessage(text) {
 function appendAIImage(imageUrl, caption) {
     const div = document.createElement('div');
     div.className = 'message ai-message';
-    div.innerHTML = `
-        <div class="bubble-wrap ai-wrap">
-            <div class="avatar ai-avatar">🤖</div>
-            <div class="bubble ai-bubble">
-                <p>${escapeHtml(caption)}</p>
-                <img src="${imageUrl}" class="msg-image generated-image" alt="generated image" onload="scrollBottom()">
-            </div>
-        </div>`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ai-bubble';
+
+    const status = document.createElement('p');
+    status.textContent = '🎨 Generating image, please wait...';
+    bubble.appendChild(status);
+
+    const img = document.createElement('img');
+    img.className = 'msg-image generated-image';
+    img.alt = 'generated image';
+    img.style.display = 'none';
+    img.onload = () => {
+        status.textContent = caption;
+        img.style.display = 'block';
+        scrollBottom();
+    };
+    img.onerror = () => {
+        status.textContent = '❌ Could not generate image. Please try again.';
+    };
+    img.src = imageUrl;
+    bubble.appendChild(img);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bubble-wrap ai-wrap';
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ai-avatar';
+    avatar.textContent = '🤖';
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubble);
+    div.appendChild(wrap);
+
     chatWindow.appendChild(div);
     scrollBottom();
 }
