@@ -46,9 +46,15 @@ def build_image_prompt(user_message):
     )
     return response.choices[0].message.content.strip()
 
-def make_image_url(prompt):
-    encoded = urllib.parse.quote(prompt)
-    return f"https://image.pollinations.ai/prompt/{encoded}?width=768&height=768&nologo=true"
+def fetch_image(prompt):
+    import urllib.request
+    encoded = urllib.parse.quote(prompt[:300])
+    url = f"https://image.pollinations.ai/prompt/{encoded}?width=512&height=512&nologo=true"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=55) as resp:
+        content_type = resp.headers.get("Content-Type", "image/jpeg")
+        data = base64.b64encode(resp.read()).decode("utf-8")
+    return f"data:{content_type};base64,{data}"
 
 @app.route("/")
 def index():
@@ -97,12 +103,12 @@ def chat():
     if not file and is_image_request(user_message):
         try:
             image_prompt = build_image_prompt(user_message)
-            image_url = make_image_url(image_prompt)
-            return jsonify({"image_url": image_url, "reply": "Here's your image!"})
+            image_data = fetch_image(image_prompt)
+            return jsonify({"image_url": image_data, "reply": "Here's your image!"})
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": f"Image generation failed: {str(e)}"}), 500
 
     try:
         if isinstance(user_content, list):
