@@ -80,8 +80,10 @@ async function sendMessage() {
         const data = await res.json();
         thinking.remove();
 
-        if (data.image_url) {
-            appendAIImage(data.image_url, data.reply);
+        if (data.job_id) {
+            pollImageJob(data.job_id);
+        } else if (data.image_url) {
+            appendAIImage(data.image_url, 'Here\'s your image!');
         } else if (data.reply) {
             appendAIMessage(data.reply);
         } else {
@@ -129,6 +131,41 @@ function appendAIMessage(text) {
         </div>`;
     chatWindow.appendChild(div);
     scrollBottom();
+}
+
+async function pollImageJob(jobId) {
+    const statusDiv = appendGeneratingMessage();
+    for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+            const res = await fetch(`/image-status/${jobId}`);
+            const data = await res.json();
+            if (data.status === 'done') {
+                statusDiv.remove();
+                appendAIImage(data.data, 'Here\'s your image!');
+                return;
+            } else if (data.status === 'error') {
+                statusDiv.remove();
+                appendAIMessage('Error: ' + data.message);
+                return;
+            }
+        } catch {}
+    }
+    statusDiv.remove();
+    appendAIMessage('Image generation timed out. Please try again.');
+}
+
+function appendGeneratingMessage() {
+    const div = document.createElement('div');
+    div.className = 'message ai-message';
+    div.innerHTML = `
+        <div class="bubble-wrap ai-wrap">
+            <div class="avatar ai-avatar">🤖</div>
+            <div class="bubble ai-bubble"><p>🎨 Generating image, please wait...</p></div>
+        </div>`;
+    chatWindow.appendChild(div);
+    scrollBottom();
+    return div;
 }
 
 function appendAIImage(imageUrl, caption) {

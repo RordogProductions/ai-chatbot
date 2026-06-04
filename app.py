@@ -4,6 +4,8 @@ import os
 import base64
 import mimetypes
 import urllib.parse
+import threading
+import uuid
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload
@@ -28,6 +30,8 @@ GEN_PHRASES = [
     "generate me a", "make me a picture", "make me an image", "create me a"
 ]
 
+image_jobs = {}
+
 def is_image_request(message):
     msg_lower = message.lower()
     return any(phrase in msg_lower for phrase in GEN_PHRASES)
@@ -48,7 +52,6 @@ def build_image_prompt(user_message):
 
 def fetch_image(prompt):
     import urllib.request, json, time
-    # Submit job to AI Horde (free, no API key required)
     payload = json.dumps({
         "prompt": prompt[:300],
         "params": {"width": 512, "height": 512, "steps": 20, "n": 1},
@@ -62,8 +65,7 @@ def fetch_image(prompt):
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         job_id = json.loads(resp.read())["id"]
-    # Poll until done (up to ~60 seconds)
-    for _ in range(30):
+    for _ in range(90):
         time.sleep(2)
         status_req = urllib.request.Request(
             f"https://stablehorde.net/api/v2/generate/status/{job_id}",
@@ -80,9 +82,23 @@ def fetch_image(prompt):
             return "data:image/webp;base64," + img
     raise Exception("Image generation timed out. Please try again.")
 
+def run_image_job(job_id, user_message):
+    try:
+        prompt = build_image_prompt(user_message)
+        data = fetch_image(prompt)
+        image_jobs[job_id] = {"status": "done", "data": data}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        image_jobs[job_id] = {"status": "error", "message": str(e)}
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/image-status/<job_id>")
+def image_status(job_id):
+    return jsonify(image_jobs.get(job_id, {"status": "not_found"}))
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -123,16 +139,14 @@ def chat():
     if not user_content:
         return jsonify({"error": "No message provided"}), 400
 
-    # Image generation request
+    # Image generation — start background job and return immediately
     if not file and is_image_request(user_message):
-        try:
-            image_prompt = build_image_prompt(user_message)
-            image_data = fetch_image(image_prompt)
-            return jsonify({"image_url": image_data, "reply": "Here's your image!"})
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": f"Image generation failed: {str(e)}"}), 500
+        job_id = str(uuid.uuid4())
+        image_jobs[job_id] = {"status": "pending"}
+        t = threading.Thread(target=run_image_job, args=(job_id, user_message))
+        t.daemon = True
+        t.start()
+        return jsonify({"job_id": job_id})
 
     try:
         if isinstance(user_content, list):
