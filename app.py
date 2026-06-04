@@ -50,7 +50,7 @@ def fetch_image(prompt):
     import urllib.request
     import json
     hf_token = os.environ.get("HF_TOKEN", "")
-    url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    url = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
     payload = json.dumps({"inputs": prompt[:300]}).encode()
     req = urllib.request.Request(url, data=payload, headers={
         "Authorization": f"Bearer {hf_token}",
