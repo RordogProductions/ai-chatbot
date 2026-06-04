@@ -47,18 +47,38 @@ def build_image_prompt(user_message):
     return response.choices[0].message.content.strip()
 
 def fetch_image(prompt):
-    import urllib.request
-    import json
-    hf_token = os.environ.get("HF_TOKEN", "")
-    url = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
-    payload = json.dumps({"inputs": prompt[:300]}).encode()
-    req = urllib.request.Request(url, data=payload, headers={
-        "Authorization": f"Bearer {hf_token}",
-        "Content-Type": "application/json"
-    })
-    with urllib.request.urlopen(req, timeout=55) as resp:
-        image_bytes = resp.read()
-    return "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode("utf-8")
+    import urllib.request, json, time
+    # Submit job to AI Horde (free, no API key required)
+    payload = json.dumps({
+        "prompt": prompt[:300],
+        "params": {"width": 512, "height": 512, "steps": 20, "n": 1},
+        "models": ["Dreamshaper"],
+        "r2": True
+    }).encode()
+    req = urllib.request.Request(
+        "https://stablehorde.net/api/v2/generate/async",
+        data=payload,
+        headers={"Content-Type": "application/json", "apikey": "0000000000"}
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        job_id = json.loads(resp.read())["id"]
+    # Poll until done (up to ~60 seconds)
+    for _ in range(30):
+        time.sleep(2)
+        status_req = urllib.request.Request(
+            f"https://stablehorde.net/api/v2/generate/status/{job_id}",
+            headers={"apikey": "0000000000"}
+        )
+        with urllib.request.urlopen(status_req, timeout=15) as resp:
+            status = json.loads(resp.read())
+        if status.get("done"):
+            img = status["generations"][0]["img"]
+            if img.startswith("http"):
+                with urllib.request.urlopen(img, timeout=15) as img_resp:
+                    img_bytes = img_resp.read()
+                return "data:image/webp;base64," + base64.b64encode(img_bytes).decode("utf-8")
+            return "data:image/webp;base64," + img
+    raise Exception("Image generation timed out. Please try again.")
 
 @app.route("/")
 def index():
