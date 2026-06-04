@@ -48,13 +48,17 @@ def build_image_prompt(user_message):
 
 def fetch_image(prompt):
     import urllib.request
-    encoded = urllib.parse.quote(prompt[:300])
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width=512&height=512&nologo=true"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    import json
+    hf_token = os.environ.get("HF_TOKEN", "")
+    url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    payload = json.dumps({"inputs": prompt[:300]}).encode()
+    req = urllib.request.Request(url, data=payload, headers={
+        "Authorization": f"Bearer {hf_token}",
+        "Content-Type": "application/json"
+    })
     with urllib.request.urlopen(req, timeout=55) as resp:
-        content_type = resp.headers.get("Content-Type", "image/jpeg")
-        data = base64.b64encode(resp.read()).decode("utf-8")
-    return f"data:{content_type};base64,{data}"
+        image_bytes = resp.read()
+    return "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode("utf-8")
 
 @app.route("/")
 def index():
