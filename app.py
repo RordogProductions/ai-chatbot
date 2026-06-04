@@ -3,6 +3,7 @@ from groq import Groq
 import os
 import base64
 import mimetypes
+import urllib.parse
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload
@@ -18,6 +19,36 @@ SYSTEM_PROMPT = (
 TEXT_MODEL = "llama-3.3-70b-versatile"
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
+GEN_PHRASES = [
+    "draw ", "draw me", "generate an image", "generate a picture", "generate a photo",
+    "create an image", "create a picture", "create a photo", "make an image",
+    "make a picture", "make a photo", "paint ", "paint me", "sketch ",
+    "show me a picture", "show me an image", "give me a picture", "give me an image",
+    "generate me a", "make me a picture", "make me an image", "create me a"
+]
+
+def is_image_request(message):
+    msg_lower = message.lower()
+    return any(phrase in msg_lower for phrase in GEN_PHRASES)
+
+def build_image_prompt(user_message):
+    response = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": (
+                "You are an image prompt engineer. Convert the user's request into a vivid, "
+                "detailed image generation prompt describing visuals, style, lighting, and composition. "
+                "Return ONLY the prompt text, no explanation."
+            )},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    return response.choices[0].message.content.strip()
+
+def make_image_url(prompt):
+    encoded = urllib.parse.quote(prompt)
+    return f"https://image.pollinations.ai/prompt/{encoded}?width=768&height=768&nologo=true&model=flux"
 
 @app.route("/")
 def index():
@@ -61,6 +92,17 @@ def chat():
 
     if not user_content:
         return jsonify({"error": "No message provided"}), 400
+
+    # Image generation request
+    if not file and is_image_request(user_message):
+        try:
+            image_prompt = build_image_prompt(user_message)
+            image_url = make_image_url(image_prompt)
+            return jsonify({"image_url": image_url, "reply": "Here's your image!"})
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": str(e)}), 500
 
     try:
         if isinstance(user_content, list):

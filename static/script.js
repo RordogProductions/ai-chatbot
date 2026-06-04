@@ -80,7 +80,9 @@ async function sendMessage() {
         const data = await res.json();
         thinking.remove();
 
-        if (data.reply) {
+        if (data.image_url) {
+            appendAIImage(data.image_url, data.reply);
+        } else if (data.reply) {
             appendAIMessage(data.reply);
         } else {
             appendAIMessage('Error: ' + (data.error || 'Something went wrong.'));
@@ -124,6 +126,21 @@ function appendAIMessage(text) {
         <div class="bubble-wrap ai-wrap">
             <div class="avatar ai-avatar">🤖</div>
             <div class="bubble ai-bubble"><p>${formatText(text)}</p></div>
+        </div>`;
+    chatWindow.appendChild(div);
+    scrollBottom();
+}
+
+function appendAIImage(imageUrl, caption) {
+    const div = document.createElement('div');
+    div.className = 'message ai-message';
+    div.innerHTML = `
+        <div class="bubble-wrap ai-wrap">
+            <div class="avatar ai-avatar">🤖</div>
+            <div class="bubble ai-bubble">
+                <p>${escapeHtml(caption)}</p>
+                <img src="${imageUrl}" class="msg-image generated-image" alt="generated image" onload="scrollBottom()">
+            </div>
         </div>`;
     chatWindow.appendChild(div);
     scrollBottom();
