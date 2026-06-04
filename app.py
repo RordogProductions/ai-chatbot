@@ -62,11 +62,7 @@ def fetch_image(prompt):
     images = data.get("images", [])
     if not images:
         raise Exception("No images found for that prompt. Try a different description.")
-    image_url = random.choice(images[:8])["src"]
-    img_req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(img_req, timeout=15) as img_resp:
-        img_bytes = img_resp.read()
-    return "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
+    return random.choice(images[:8])["srcSmall"]
 
 def run_image_job(job_id, user_message):
     try:
