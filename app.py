@@ -61,7 +61,7 @@ def fetch_image(prompt):
     req = urllib.request.Request(
         "https://stablehorde.net/api/v2/generate/async",
         data=payload,
-        headers={"Content-Type": "application/json", "apikey": "0000000000"}
+        headers={"Content-Type": "application/json", "apikey": os.environ.get("HORDE_API_KEY", "0000000000")}
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         job_id = json.loads(resp.read())["id"]
@@ -69,7 +69,7 @@ def fetch_image(prompt):
         time.sleep(2)
         status_req = urllib.request.Request(
             f"https://stablehorde.net/api/v2/generate/status/{job_id}",
-            headers={"apikey": "0000000000"}
+            headers={"apikey": os.environ.get("HORDE_API_KEY", "0000000000")}
         )
         with urllib.request.urlopen(status_req, timeout=15) as resp:
             status = json.loads(resp.read())
