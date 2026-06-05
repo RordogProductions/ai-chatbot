@@ -2,3 +2,4 @@ flask
 groq
 gunicorn
 pypdf
+pillow

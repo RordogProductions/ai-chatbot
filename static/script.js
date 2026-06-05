@@ -83,7 +83,9 @@ async function sendMessage() {
         if (data.job_id) {
             pollImageJob(data.job_id);
         } else if (data.image_url) {
-            appendAIImage(data.image_url, 'Here\'s your image!');
+            appendAIImage(data.image_url, data.reply || 'Here\'s your image!');
+        } else if (data.edited_file) {
+            appendAIFileEdit(data.edited_file, data.filename, data.reply);
         } else if (data.reply) {
             appendAIMessage(data.reply);
         } else {
@@ -128,6 +130,23 @@ function appendAIMessage(text) {
         <div class="bubble-wrap ai-wrap">
             <div class="avatar ai-avatar">🤖</div>
             <div class="bubble ai-bubble"><p>${formatText(text)}</p></div>
+        </div>`;
+    chatWindow.appendChild(div);
+    scrollBottom();
+}
+
+function appendAIFileEdit(content, filename, caption) {
+    const div = document.createElement('div');
+    div.className = 'message ai-message';
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    div.innerHTML = `
+        <div class="bubble-wrap ai-wrap">
+            <div class="avatar ai-avatar">🤖</div>
+            <div class="bubble ai-bubble">
+                <p>${escapeHtml(caption || 'Here\'s your edited file!')}</p>
+                <a href="${url}" download="${escapeHtml(filename || 'edited_file.txt')}" class="download-btn">⬇️ Download ${escapeHtml(filename || 'edited file')}</a>
+            </div>
         </div>`;
     chatWindow.appendChild(div);
     scrollBottom();

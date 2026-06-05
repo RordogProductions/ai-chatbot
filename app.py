@@ -30,11 +30,108 @@ GEN_PHRASES = [
     "generate me a", "make me a picture", "make me an image", "create me a"
 ]
 
+IMAGE_EDIT_PHRASES = [
+    "brighten", "darken", "brighter", "darker", "blur", "sharpen",
+    "rotate", "flip", "grayscale", "black and white", "black-and-white",
+    "vintage", "make it", "edit", "filter", "contrast", "saturate",
+    "make the image", "make this image", "make the photo", "make this photo"
+]
+
+FILE_EDIT_PHRASES = [
+    "edit", "fix", "change", "update", "modify", "rewrite", "improve",
+    "correct", "translate", "refactor", "add", "remove", "rename"
+]
+
 image_jobs = {}
 
 def is_image_request(message):
     msg_lower = message.lower()
     return any(phrase in msg_lower for phrase in GEN_PHRASES)
+
+def is_image_edit_request(message):
+    msg_lower = message.lower()
+    return any(phrase in msg_lower for phrase in IMAGE_EDIT_PHRASES)
+
+def is_file_edit_request(message):
+    msg_lower = message.lower()
+    return any(phrase in msg_lower for phrase in FILE_EDIT_PHRASES)
+
+def apply_image_edits(image_bytes, instructions):
+    from PIL import Image, ImageEnhance, ImageFilter
+    import io, json
+
+    response = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": (
+                "You are an image editing assistant. Based on the user's instructions, "
+                "return a JSON array of edit operations to apply. "
+                "Available operations:\n"
+                '{"op":"brightness","factor":1.5} (0.5=darker, 2.0=brighter)\n'
+                '{"op":"contrast","factor":1.5}\n'
+                '{"op":"saturation","factor":1.5} (0=grayscale, 2=vivid)\n'
+                '{"op":"sharpness","factor":2.0}\n'
+                '{"op":"grayscale"}\n'
+                '{"op":"blur","radius":2}\n'
+                '{"op":"rotate","degrees":90}\n'
+                '{"op":"flip_horizontal"}\n'
+                '{"op":"flip_vertical"}\n'
+                "Return ONLY a valid JSON array, nothing else."
+            )},
+            {"role": "user", "content": instructions}
+        ]
+    )
+
+    ops_text = response.choices[0].message.content.strip()
+    if "```" in ops_text:
+        ops_text = ops_text.split("```")[1]
+        if ops_text.startswith("json"):
+            ops_text = ops_text[4:]
+    ops = json.loads(ops_text.strip())
+
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+
+    for op in ops:
+        name = op.get("op", "")
+        if name == "brightness":
+            img = ImageEnhance.Brightness(img).enhance(op.get("factor", 1.5))
+        elif name == "contrast":
+            img = ImageEnhance.Contrast(img).enhance(op.get("factor", 1.5))
+        elif name == "saturation":
+            img = ImageEnhance.Color(img).enhance(op.get("factor", 1.5))
+        elif name == "sharpness":
+            img = ImageEnhance.Sharpness(img).enhance(op.get("factor", 2.0))
+        elif name == "grayscale":
+            img = img.convert("L").convert("RGB")
+        elif name == "blur":
+            img = img.filter(ImageFilter.GaussianBlur(op.get("radius", 2)))
+        elif name == "rotate":
+            img = img.rotate(op.get("degrees", 90), expand=True)
+        elif name == "flip_horizontal":
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        elif name == "flip_vertical":
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+
+    output = io.BytesIO()
+    img.save(output, format="JPEG", quality=90)
+    output.seek(0)
+    return base64.b64encode(output.read()).decode("utf-8")
+
+def apply_file_edits(filename, content, instructions):
+    response = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": (
+                "You are a file editing assistant. Apply the user's editing instructions "
+                "to the file content and return ONLY the complete edited file content. "
+                "No explanations, no markdown code blocks — just the edited content."
+            )},
+            {"role": "user", "content": f"File: {filename}\n\nContent:\n{content}\n\nInstructions: {instructions}"}
+        ]
+    )
+    return response.choices[0].message.content
 
 def get_search_keywords(user_message):
     response = client.chat.completions.create(
@@ -61,7 +158,6 @@ def get_search_keywords(user_message):
 def fetch_image(prompt):
     import urllib.request, json, random
     key = os.environ.get("PIXABAY_KEY", "")
-    # Use first 3 words as search terms for best results
     terms = " ".join(prompt.split()[:5])
     encoded = urllib.parse.quote(terms)
     url = f"https://pixabay.com/api/?key={key}&q={encoded}&image_type=all&per_page=10&safesearch=true"
@@ -103,8 +199,19 @@ def chat():
         ext = os.path.splitext(file.filename)[1].lower()
 
         if mime_type in IMAGE_TYPES:
+            image_bytes = file.read()
+            # Edit the image if the user asked for edits
+            if user_message and is_image_edit_request(user_message):
+                try:
+                    edited_b64 = apply_image_edits(image_bytes, user_message)
+                    return jsonify({"image_url": f"data:image/jpeg;base64,{edited_b64}", "reply": "Here's your edited image!"})
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({"error": f"Image editing failed: {str(e)}"}), 500
+            # Otherwise analyze the image
             model = VISION_MODEL
-            image_data = base64.b64encode(file.read()).decode("utf-8")
+            image_data = base64.b64encode(image_bytes).decode("utf-8")
             user_content = [
                 {"type": "text", "text": SYSTEM_PROMPT + "\n\n" + (user_message or "What's in this image?")},
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}}
@@ -122,6 +229,15 @@ def chat():
         else:
             try:
                 content = file.read().decode("utf-8", errors="ignore")[:12000]
+                # Edit the file if the user asked for edits
+                if user_message and is_file_edit_request(user_message):
+                    try:
+                        edited = apply_file_edits(file.filename, content, user_message)
+                        return jsonify({"reply": f"Here's your edited file:\n\n{edited}", "edited_file": edited, "filename": file.filename})
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
+                        return jsonify({"error": f"File editing failed: {str(e)}"}), 500
                 label = f"[File: {file.filename}]\n{content}"
                 user_content = f"{user_message}\n\n{label}" if user_message else label
             except Exception:

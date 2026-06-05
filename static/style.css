@@ -151,6 +151,20 @@ main {
     margin-bottom: 6px;
 }
 
+.download-btn {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.download-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
 .file-chip {
     background: rgba(255,255,255,0.15);
     border-radius: 8px;
