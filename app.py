@@ -58,7 +58,7 @@ def fetch_image(prompt):
     # Use first 3 words as search terms for best results
     terms = " ".join(prompt.split()[:5])
     encoded = urllib.parse.quote(terms)
-    url = f"https://pixabay.com/api/?key={key}&q={encoded}&image_type=photo&per_page=10&safesearch=true"
+    url = f"https://pixabay.com/api/?key={key}&q={encoded}&image_type=all&per_page=10&safesearch=true"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read())
