@@ -52,17 +52,18 @@ def build_image_prompt(user_message):
 
 def fetch_image(prompt):
     import urllib.request, json, random
-    encoded = urllib.parse.quote(prompt[:200])
-    req = urllib.request.Request(
-        f"https://lexica.art/api/v1/search?q={encoded}",
-        headers={"User-Agent": "Mozilla/5.0"}
-    )
+    key = os.environ.get("PIXABAY_KEY", "")
+    # Use first 3 words as search terms for best results
+    terms = " ".join(prompt.split()[:5])
+    encoded = urllib.parse.quote(terms)
+    url = f"https://pixabay.com/api/?key={key}&q={encoded}&image_type=photo&per_page=10&safesearch=true"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read())
-    images = data.get("images", [])
-    if not images:
+    hits = data.get("hits", [])
+    if not hits:
         raise Exception("No images found for that prompt. Try a different description.")
-    return random.choice(images[:8])["srcSmall"]
+    return random.choice(hits[:5])["webformatURL"]
 
 def run_image_job(job_id, user_message):
     try:
