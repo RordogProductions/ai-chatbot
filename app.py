@@ -36,14 +36,16 @@ def is_image_request(message):
     msg_lower = message.lower()
     return any(phrase in msg_lower for phrase in GEN_PHRASES)
 
-def build_image_prompt(user_message):
+def get_search_keywords(user_message):
     response = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[
             {"role": "system", "content": (
-                "You are an image prompt engineer. Convert the user's request into a vivid, "
-                "detailed image generation prompt describing visuals, style, lighting, and composition. "
-                "Return ONLY the prompt text, no explanation."
+                "Extract 2-3 simple search keywords from the user's image request. "
+                "Return ONLY the keywords, nothing else. "
+                "Examples: 'draw me a dragon' → 'dragon', "
+                "'generate a sunset over mountains' → 'sunset mountains', "
+                "'make a picture of a robot' → 'robot'"
             )},
             {"role": "user", "content": user_message}
         ]
@@ -67,8 +69,8 @@ def fetch_image(prompt):
 
 def run_image_job(job_id, user_message):
     try:
-        prompt = build_image_prompt(user_message)
-        data = fetch_image(prompt)
+        keywords = get_search_keywords(user_message)
+        data = fetch_image(keywords)
         image_jobs[job_id] = {"status": "done", "data": data}
     except Exception as e:
         import traceback
