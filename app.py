@@ -41,11 +41,17 @@ def get_search_keywords(user_message):
         model=TEXT_MODEL,
         messages=[
             {"role": "system", "content": (
-                "Extract 2-3 simple search keywords from the user's image request. "
-                "Return ONLY the keywords, nothing else. "
-                "Examples: 'draw me a dragon' → 'dragon', "
-                "'generate a sunset over mountains' → 'sunset mountains', "
-                "'make a picture of a robot' → 'robot'"
+                "Convert the user's image request into the best Pixabay search keywords. "
+                "Pixabay has photos, illustrations, and digital art. "
+                "For fictional or fantasy subjects (dragons, unicorns, monsters, robots, etc.), "
+                "add 'fantasy art' or 'illustration' to the keywords. "
+                "For real subjects, use 2-3 descriptive keywords. "
+                "Return ONLY the search keywords, nothing else. "
+                "Examples: "
+                "'draw me a dragon' → 'dragon fantasy art', "
+                "'generate a sunset' → 'sunset sky colorful', "
+                "'make a robot' → 'robot futuristic illustration', "
+                "'paint me a unicorn' → 'unicorn fantasy illustration'"
             )},
             {"role": "user", "content": user_message}
         ]
