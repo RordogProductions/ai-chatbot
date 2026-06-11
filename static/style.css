@@ -342,3 +342,195 @@ footer {
     font-size: 0.8rem;
     text-align: center;
 }
+
+/* Header user area */
+.header-spacer { flex: 1; }
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sign-in-btn {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    border: none;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    transition: opacity 0.2s;
+}
+.sign-in-btn:hover { opacity: 0.85; }
+
+.user-greeting {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.sign-out-btn {
+    background: #283548;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+}
+.sign-out-btn:hover { background: #334155; color: #e2e8f0; }
+
+/* Auth modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+}
+.modal-overlay.visible { display: flex; }
+
+.modal-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 32px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    position: relative;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+}
+
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+}
+.modal-close:hover { color: #e2e8f0; background: #283548; }
+
+.modal-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-tabs {
+    display: flex;
+    gap: 4px;
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 24px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #64748b;
+    padding: 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+}
+.tab-btn.active {
+    background: #1e293b;
+    color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.auth-input {
+    width: 100%;
+    background: #283548;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+.auth-input:focus { border-color: #6366f1; }
+.auth-input::placeholder { color: #64748b; }
+
+.auth-error {
+    color: #f87171;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    min-height: 20px;
+    text-align: center;
+}
+
+.auth-submit {
+    width: 100%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    border: none;
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    transition: opacity 0.2s;
+    margin-bottom: 10px;
+}
+.auth-submit:hover { opacity: 0.9; }
+.auth-submit:disabled { opacity: 0.5; cursor: default; }
+
+.auth-guest {
+    width: 100%;
+    background: none;
+    border: 1px solid #334155;
+    color: #64748b;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s, color 0.15s;
+}
+.auth-guest:hover { background: #283548; color: #94a3b8; }
+
+/* History separator */
+.history-separator {
+    text-align: center;
+    color: #475569;
+    font-size: 0.8rem;
+    padding: 8px 0;
+    border-top: 1px solid #1e293b;
+    margin: 4px 0;
+}

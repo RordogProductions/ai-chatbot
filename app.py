@@ -1,14 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from groq import Groq
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import base64
 import mimetypes
 import urllib.parse
 import threading
 import uuid
+import sqlite3
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload
+app.secret_key = os.environ.get('SECRET_KEY', 'pragmatic-ai-dev-key-2024')
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 SYSTEM_PROMPT = (
@@ -44,6 +47,123 @@ FILE_EDIT_PHRASES = [
 
 image_jobs = {}
 
+# --- Database ---
+DB_PATH = os.path.join(os.path.dirname(__file__), 'users.db')
+
+def get_db():
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    return db
+
+def init_db():
+    db = get_db()
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    db.commit()
+    db.close()
+
+init_db()
+
+def save_message(user_id, role, content):
+    db = get_db()
+    db.execute('INSERT INTO chats (user_id, role, content) VALUES (?, ?, ?)',
+               [user_id, role, content])
+    db.commit()
+    db.close()
+
+def get_recent_history(user_id, limit=10):
+    if not user_id:
+        return []
+    db = get_db()
+    rows = db.execute(
+        'SELECT role, content FROM chats WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        [user_id, limit]
+    ).fetchall()
+    db.close()
+    return [{'role': r['role'], 'content': r['content']} for r in reversed(rows)]
+
+# --- Auth routes ---
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+    if len(username) < 3:
+        return jsonify({'error': 'Username must be at least 3 characters'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    db = get_db()
+    try:
+        db.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
+                   [username, generate_password_hash(password)])
+        db.commit()
+        user = db.execute('SELECT * FROM users WHERE username = ?', [username]).fetchone()
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        return jsonify({'success': True, 'username': user['username']})
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'That username is already taken'}), 400
+    finally:
+        db.close()
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '').strip()
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE username = ?', [username]).fetchone()
+    db.close()
+    if not user or not check_password_hash(user['password_hash'], password):
+        return jsonify({'error': 'Invalid username or password'}), 401
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    return jsonify({'success': True, 'username': user['username']})
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/me')
+def me():
+    if 'user_id' in session:
+        return jsonify({'logged_in': True, 'username': session['username']})
+    return jsonify({'logged_in': False})
+
+@app.route('/history')
+def history():
+    if 'user_id' not in session:
+        return jsonify({'messages': []})
+    db = get_db()
+    rows = db.execute(
+        'SELECT role, content FROM chats WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+        [session['user_id']]
+    ).fetchall()
+    db.close()
+    return jsonify({'messages': [{'role': r['role'], 'content': r['content']} for r in reversed(rows)]})
+
+# --- Helper functions ---
 def is_image_request(message):
     msg_lower = message.lower()
     return any(phrase in msg_lower for phrase in GEN_PHRASES)
@@ -179,6 +299,7 @@ def run_image_job(job_id, user_message):
         traceback.print_exc()
         image_jobs[job_id] = {"status": "error", "message": str(e)}
 
+# --- Main routes ---
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -189,6 +310,7 @@ def image_status(job_id):
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    user_id = session.get('user_id')
     user_message = request.form.get("message", "").strip()
     file = request.files.get("file")
     model = TEXT_MODEL
@@ -200,7 +322,6 @@ def chat():
 
         if mime_type in IMAGE_TYPES:
             image_bytes = file.read()
-            # Edit the image if the user asked for edits
             if user_message and is_image_edit_request(user_message):
                 try:
                     edited_b64 = apply_image_edits(image_bytes, user_message)
@@ -209,7 +330,6 @@ def chat():
                     import traceback
                     traceback.print_exc()
                     return jsonify({"error": f"Image editing failed: {str(e)}"}), 500
-            # Otherwise analyze the image
             model = VISION_MODEL
             image_data = base64.b64encode(image_bytes).decode("utf-8")
             user_content = [
@@ -229,7 +349,6 @@ def chat():
         else:
             try:
                 content = file.read().decode("utf-8", errors="ignore")[:12000]
-                # Edit the file if the user asked for edits
                 if user_message and is_file_edit_request(user_message):
                     try:
                         edited = apply_file_edits(file.filename, content, user_message)
@@ -246,7 +365,6 @@ def chat():
     if not user_content:
         return jsonify({"error": "No message provided"}), 400
 
-    # Image generation — start background job and return immediately
     if not file and is_image_request(user_message):
         job_id = str(uuid.uuid4())
         image_jobs[job_id] = {"status": "pending"}
@@ -259,12 +377,20 @@ def chat():
         if isinstance(user_content, list):
             messages = [{"role": "user", "content": user_content}]
         else:
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ]
+            recent = get_recent_history(user_id, 10)
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            for h in recent:
+                messages.append({"role": h['role'], "content": h['content']})
+            messages.append({"role": "user", "content": user_content})
+
         response = client.chat.completions.create(model=model, messages=messages)
-        return jsonify({"reply": response.choices[0].message.content})
+        reply = response.choices[0].message.content
+
+        if user_id and not file:
+            save_message(user_id, 'user', user_message)
+            save_message(user_id, 'assistant', reply)
+
+        return jsonify({"reply": reply})
     except Exception as e:
         import traceback
         traceback.print_exc()

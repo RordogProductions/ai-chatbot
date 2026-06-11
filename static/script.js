@@ -8,10 +8,148 @@ const fileInput = document.getElementById('file-input');
 const attachmentPreview = document.getElementById('attachment-preview');
 const attachmentName = document.getElementById('attachment-name');
 const removeAttachment = document.getElementById('remove-attachment');
+const authModal = document.getElementById('auth-modal');
+const headerUser = document.getElementById('header-user');
+const authUsername = document.getElementById('auth-username');
+const authPassword = document.getElementById('auth-password');
+const authError = document.getElementById('auth-error');
+const authSubmit = document.getElementById('auth-submit');
 
 let selectedFile = null;
+let currentUser = null;
+let authMode = 'signin';
 
-// Plus button menu toggle
+// --- Auth modal ---
+
+function showAuthModal() {
+    authModal.classList.add('visible');
+    authUsername.value = '';
+    authPassword.value = '';
+    authError.textContent = '';
+    setTimeout(() => authUsername.focus(), 50);
+}
+
+function hideAuthModal() {
+    authModal.classList.remove('visible');
+}
+
+function setLoggedIn(username) {
+    currentUser = username;
+    headerUser.innerHTML = `
+        <span class="user-greeting">👤 ${escapeHtml(username)}</span>
+        <button class="sign-out-btn" id="sign-out-btn">Sign Out</button>
+    `;
+    document.getElementById('sign-out-btn').addEventListener('click', signOut);
+    hideAuthModal();
+}
+
+async function signOut() {
+    await fetch('/logout', { method: 'POST' });
+    currentUser = null;
+    headerUser.innerHTML = '<button class="sign-in-btn" id="open-auth-btn">Sign In</button>';
+    document.getElementById('open-auth-btn').addEventListener('click', showAuthModal);
+}
+
+document.getElementById('open-auth-btn').addEventListener('click', showAuthModal);
+document.getElementById('modal-close').addEventListener('click', hideAuthModal);
+document.getElementById('auth-guest').addEventListener('click', hideAuthModal);
+
+authModal.addEventListener('click', (e) => {
+    if (e.target === authModal) hideAuthModal();
+});
+
+document.getElementById('tab-signin').addEventListener('click', () => {
+    authMode = 'signin';
+    document.getElementById('tab-signin').classList.add('active');
+    document.getElementById('tab-signup').classList.remove('active');
+    authSubmit.textContent = 'Sign In';
+    authError.textContent = '';
+});
+
+document.getElementById('tab-signup').addEventListener('click', () => {
+    authMode = 'signup';
+    document.getElementById('tab-signup').classList.add('active');
+    document.getElementById('tab-signin').classList.remove('active');
+    authSubmit.textContent = 'Create Account';
+    authError.textContent = '';
+});
+
+authSubmit.addEventListener('click', async () => {
+    const username = authUsername.value.trim();
+    const password = authPassword.value.trim();
+    authError.textContent = '';
+    authSubmit.disabled = true;
+
+    const endpoint = authMode === 'signin' ? '/login' : '/register';
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.error) {
+            authError.textContent = data.error;
+        } else {
+            setLoggedIn(data.username);
+            if (authMode === 'signup') {
+                appendAIMessage(`Welcome, ${escapeHtml(data.username)}! Your account has been created. I'll remember our conversations from now on! 🎉`);
+            } else {
+                loadHistory(data.username);
+            }
+        }
+    } catch {
+        authError.textContent = 'Could not connect. Is the server running?';
+    }
+    authSubmit.disabled = false;
+});
+
+authUsername.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') authPassword.focus();
+});
+authPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') authSubmit.click();
+});
+
+async function loadHistory(username) {
+    try {
+        const res = await fetch('/history');
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+            chatWindow.innerHTML = '';
+            const sep = document.createElement('div');
+            sep.className = 'history-separator';
+            sep.textContent = '— Previous conversation —';
+            chatWindow.appendChild(sep);
+            const recent = data.messages.slice(-10);
+            recent.forEach(msg => {
+                if (msg.role === 'user') {
+                    appendUserMessage(msg.content, null);
+                } else {
+                    appendAIMessage(msg.content);
+                }
+            });
+            appendAIMessage(`Welcome back, ${escapeHtml(username)}! How can I help you today?`);
+        } else {
+            appendAIMessage(`Welcome back, ${escapeHtml(username)}! Great to see you again.`);
+        }
+    } catch {}
+}
+
+async function checkAuth() {
+    try {
+        const res = await fetch('/me');
+        const data = await res.json();
+        if (data.logged_in) {
+            setLoggedIn(data.username);
+        }
+    } catch {}
+}
+
+checkAuth();
+
+// --- Plus button menu ---
+
 plusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     plusMenu.classList.toggle('visible');
@@ -46,7 +184,8 @@ removeAttachment.addEventListener('click', () => {
     attachmentPreview.classList.remove('visible');
 });
 
-// Sending messages
+// --- Sending messages ---
+
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -100,6 +239,8 @@ async function sendMessage() {
     userInput.disabled = false;
     userInput.focus();
 }
+
+// --- Message rendering ---
 
 function appendUserMessage(text, file) {
     const div = document.createElement('div');
@@ -244,6 +385,7 @@ function scrollBottom() {
 }
 
 function escapeHtml(str) {
+    if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 

@@ -16,6 +16,10 @@
         <h1>Rordog AI</h1>
         <div class="status">Online</div>
     </div>
+    <div class="header-spacer"></div>
+    <div class="header-user" id="header-user">
+        <button class="sign-in-btn" id="open-auth-btn">Sign In</button>
+    </div>
 </header>
 
 <main>
@@ -56,6 +60,29 @@
 <!-- Hidden file inputs -->
 <input type="file" id="photo-input" accept="image/*" style="display:none">
 <input type="file" id="file-input" accept=".pdf,.txt,.csv,.md,.py,.js,.html,.css,.json" style="display:none">
+
+<!-- Auth Modal -->
+<div class="modal-overlay" id="auth-modal">
+    <div class="modal-box">
+        <button class="modal-close" id="modal-close">✕</button>
+        <h2 class="modal-title">Welcome to Rordog AI</h2>
+        <div class="modal-tabs">
+            <button class="tab-btn active" id="tab-signin">Sign In</button>
+            <button class="tab-btn" id="tab-signup">Create Account</button>
+        </div>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="auth-username" class="auth-input" placeholder="Enter username" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="auth-password" class="auth-input" placeholder="Enter password" autocomplete="current-password">
+        </div>
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-submit" id="auth-submit">Sign In</button>
+        <button class="auth-guest" id="auth-guest">Continue without an account</button>
+    </div>
+</div>
 
 <script src="/static/script.js"></script>
 </body>
