@@ -312,6 +312,7 @@ def image_status(job_id):
 def chat():
     user_id = session.get('user_id')
     user_message = request.form.get("message", "").strip()
+    generate_mode = request.form.get("generate_mode") == "1"
     file = request.files.get("file")
     model = TEXT_MODEL
     user_content = user_message
@@ -365,7 +366,7 @@ def chat():
     if not user_content:
         return jsonify({"error": "No message provided"}), 400
 
-    if not file and is_image_request(user_message):
+    if not file and (generate_mode or is_image_request(user_message)):
         job_id = str(uuid.uuid4())
         image_jobs[job_id] = {"status": "pending"}
         t = threading.Thread(target=run_image_job, args=(job_id, user_message))

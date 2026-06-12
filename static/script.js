@@ -18,6 +18,24 @@ const authSubmit = document.getElementById('auth-submit');
 let selectedFile = null;
 let currentUser = null;
 let authMode = 'signin';
+let generateMode = false;
+
+const generateBanner = document.getElementById('generate-banner');
+const generateCancel = document.getElementById('generate-cancel');
+
+document.getElementById('menu-generate').addEventListener('click', () => {
+    generateMode = true;
+    generateBanner.classList.add('visible');
+    userInput.placeholder = 'Describe an image to generate...';
+    plusMenu.classList.remove('visible');
+    userInput.focus();
+});
+
+generateCancel.addEventListener('click', () => {
+    generateMode = false;
+    generateBanner.classList.remove('visible');
+    userInput.placeholder = 'Message Pragmatic AI...';
+});
 
 // --- Auth modal ---
 
@@ -199,9 +217,16 @@ async function sendMessage() {
     if (!text && !selectedFile) return;
 
     const file = selectedFile;
+    const wasGenerateMode = generateMode;
     selectedFile = null;
     attachmentPreview.classList.remove('visible');
     userInput.value = '';
+
+    if (generateMode) {
+        generateMode = false;
+        generateBanner.classList.remove('visible');
+        userInput.placeholder = 'Message Pragmatic AI...';
+    }
 
     appendUserMessage(text, file);
 
@@ -212,6 +237,7 @@ async function sendMessage() {
 
     const formData = new FormData();
     formData.append('message', text);
+    formData.append('generate_mode', wasGenerateMode ? '1' : '0');
     if (file) formData.append('file', file);
 
     try {

@@ -525,6 +525,33 @@ footer {
 }
 .auth-guest:hover { background: #283548; color: #94a3b8; }
 
+/* Generate mode banner */
+.generate-banner {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: #a5b4fc;
+}
+.generate-banner.visible { display: flex; }
+
+.generate-cancel {
+    background: none;
+    border: none;
+    color: #818cf8;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: auto;
+    padding: 0;
+    line-height: 1;
+}
+.generate-cancel:hover { color: #a5b4fc; }
+
 /* History separator */
 .history-separator {
     text-align: center;
